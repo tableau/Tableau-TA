@@ -1,0 +1,7 @@
+# Requirements
+
+In order to properly use this TA, we recommend including the Splunk Add-on for Tomcat.
+This TA also uses apache:access as a sourcetype that is one of the pre-trained Splunk Sourcetypes. 
+It has not been tested with the Splunk Add-on for Apache Web Server.
+
+
