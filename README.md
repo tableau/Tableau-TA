@@ -44,7 +44,7 @@ Installation:
 ### Tableau Desktop ###
 
 * Remove the inputs.conf file
-* Rename client_inputs.conf to inputs.con
+* Rename client_inputs.conf to inputs.conf
 * Check that the file paths for the Monitor stanzas match your environment
 * Deploy to a Universal Splunk Forwarder on Tableau Desktop
 
