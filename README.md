@@ -1,9 +1,8 @@
 TA-Tableau
 ==========
-
 [![Community Supported](https://img.shields.io/badge/Support%20Level-Community%20Supported-457387.svg)](https://www.tableau.com/support-levels-it-and-developer-tools)
 
-**Release:** v0.1
+**Release:** v1.0
 
 This is a Splunk add-on for Tableau Server logs.  
 This TA allows you to ingest and search Tableau Logs directly in Splunk.
@@ -14,8 +13,7 @@ This has been tested with Splunk 8.0 and above, but should also support older ve
 Requirements
 ------------
 
-In order to use the Tomcat logs, install the Splunk Add-on for Tomcat from Splunk. Tableau logs also use apache:access 
-and log4j which are Splunk pretrained sourcetypes. 
+There are several dependencies.  Please reference requirements.txt.
 
 
 Installation
@@ -45,62 +43,73 @@ Installation:
 
 ### Tableau Desktop ###
 
-* Remove the inputs.conf file
-* Rename client_inputs.conf to inputs.conf
+* For Tableu Desktop, use the Tableau_Clients app in the deployment-clients directory
 * Check that the file paths for the Monitor stanzas match your environment
-* Deploy to a Universal Splunk Forwarder on Tableau Desktop
+* Place the app on your deployment server, or locally if single use.
 
-### Tableau Server ###
+### Tableau Windows Server ###
 
-* Remove the client_inputs.conf
-* Deploy the inputs.conf to Tableau Server's running the Universal Forwarder
+* Use the Tableau_Server_Windows app under the deployment-apps directory
+* Install on a deployment server, or locally for a single instance.
 * The Monitor paths for inputs.conf use the Environment Variable set by Tableau Server
 
 Single Splunk System:
 
  * Download the addon
- * Place the TA-Tableau in the $SPLUNK_HOME/etc/apps directory
+ * Place the TA-Tableau from the master-apps directoy in the $SPLUNK_HOME/etc/apps directory
+ * Place the contents from the shcluster Tableau_TA into the same directory as above
  * Restart Splunk Enterprise to load the configs
 
-Splunk Distributed Enterprise deployment
+Splunk Distributed Enterprise deployment 
 
 Search Head Clusters
 
- * Remove the inputs.conf files
- * Deploy the TA-Tableau folder in $SPLUNK_HOME/etc/apps (or via search head deployer)
+ * Place the Tableau_TA file from shcluster in the $SPLUNK_HOME/etc/shcluster/apps directory
+ * Apply the new bundle
 
 Indexers and Indexer Clusters
 
- * Remove the inputs.conf files
+ * Install the contents of the master-apps Tableau_TA on your cluster master, or directly into the apps of the indexers
  * Restart the indexer or apply bundle from the cluster master
 
 Universal Forwarders
 
- * Place the TA-Tableau in the $SPLUNK_HOME/etc/apps directory on your forwarder (or use a deployment server)
- * Restart the forwarder
+ * Use the appropriate Tableau_Clients or Tableau_Server_Windows in the $SPLUNK_HOME/etc/apps directory on your forwarder (or use a deployment server)
  * Check the inputs.conf to match your environment
- * Add a default setting for the index target at the top of the file if desired.
+ * Add a default setting for the index target at the top of the file if desired
+ * Restart the Forwarder
 
 Heavy Forwarders
 
- * Install the TA-Tableau in the $SPLUNK_HOME/etc/apps  directory
- * Remove the inputs.conf files
+ * Install the components from master-apps Tableau_TA in the $SPLUNK_HOME/etc/apps  directory
  * Restart the heavy forwarder
 
 
 Sourcetypes
 -----------
 
-This addon supports the following Sourcetypes:
+The primary sourcetypes for this app are:
 
 ### apache:access ###
-Data processed by the Apache server, the naming follows Splunk pretrained defaults.
+Inbound requests to Tableau Server hostnames.  Includes some internal traffic (heartbeats, dataserver, etc)
+
+### apache_error ###
+Error logs for web server component.
 
 ### log4j ###
-Component runtime logs in log4j format.  This is a pretrained sourcetype supported by Splunk
+Component runtime logs
+
+### tts:native ###
+View rendering and data handling, comprising the majority of data volume.  JSON format.
+
+### tts:hyper ###
+Variant of tts:native used by the Hyper data engine
+
+### tts:pgsql ###
+PostgreSQL's CSV logging.  Installations with an external repository will need additional work to ingest and parse those logs.
 
 ### tomcat:access:log ###
-Logs in the Tomcat format. Use the Splunk Add-on for Tomcat.
+Cross-process traffic
 
 ### tomcat:runtime:log ###
 Runtime log for Tomcat. Use the Splunk Add-on for Tomcat.
@@ -111,58 +120,70 @@ Logs from Elastic Server.
 ### tts:metrics ###
 Tableau Metrics logs.
 
-### tts:native ###
-nativeAPI logs, the bulk of the data is in these logs. JSON format.
-
 ### tts:oauth ###
 oauth client logs (generally passthrough to data sources).  May not be used in your installation.
 
-### tts:pgsql ###
-PostgreSQL's CSV logging. 
-Installations with an external repository will need additional work to ingest and parse those logs.
+### tts:redis ###
+Cache server logging
 
 ### tts:stdout ###
 Component start logs.  Rarely contain timestamps so you may need to localize with _indextime
 
-### tts:unknown ###
-New logs that do not fit into an existing sourcetype. 
-Can be used to rapidly include unhandled logs until a proper sourcetype is defined.  
-Will be unused in normal circumstances.
+### tts:tablicsrv ###
+License service log
+
+### tts:xml ###
+Primarily configuration files.  Mostly unstructured.
 
 ### tts:yaml ###
-Logs written in YAML format.
+Primarily configuration files.  Mostly unstructured.
 
 Search Time Extractions
 -----------------------
 
-Included in this TA are some Search Time Extractions for props.conf to be installed on the Search Heads.
+A partial list of Search Time Extractions for props.conf to be installed on the Search Heads.
+
+### File Filtering ###
+The following extractions appear as components of source in the order base_directory*processname*base_filename.  The extractions may be used for human convenience, or as statistical outputs:
+
+* base_directory:
+The root directory that Tableau Server is installed under.
 
 * processname:
+This distinguishes Tableau components, such as "hyper", "vizqlserver", or "backgrounder" etc.
 
-Distingusihing various Tableau services from one aother is best handled via the source path. A regex based on the source path
-will give you the processname of of the job, such as "hyper", "vizqlserver", or "backgrounder" etc.
+* base_filename:
+The specific file an event was drawn from
+
+### General ###
+
+* sev:
+Log level (severity).  Unified name for both Log4J and tts:native files
+
+* req:
+Corresponds to a request ID from apache:access
+
+* sess:
+Pertaining to a vizQL session (typically a single workbook load or extract refresh)
+
+* http_status_code:
+Identifies the code returned for a given request.  Appears in apache:access as well as some log4j files.
+
+* wb:
+Workbook name.  Note that the format will be similar to what appears in URL rather than the fully punctuated display name
+
+
+### Background Jobs ###
 
 * BGJobID:
-
-This extraction will give you the BGJobID from the logs. 
-
-  eg: kill_long_running_active_transactions, enqueue_data_alerts, sos_reconcile, etc.
+This correlates with the JobID from admin views and will be found in the log4j sourcetype. 
 
 * BGJobOutcome:
-
 This extraction tells you if your job was a SUCCESS or ERROR.
 
 * BGJobType:
-
 This extraction reports the type of the job that was run. 
   eg: enqueue_data_alerts,	kill_long_running_active_transactions, materialized_views_query_store_persist, etc.
-
-Future
-------
-
-Planned features:
- * Map Logs to Common Information Model (CIM) 
- * Include components for a Splunk SA to enhance searching the logs 
 
 Contributors
 ------------
